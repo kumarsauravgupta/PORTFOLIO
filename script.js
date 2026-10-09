@@ -28,9 +28,79 @@ $("#ln").innerHTML = R(CFG.links, l => `<a class="btn" target="_blank" rel="noop
 // bars + ring
 const L = CFG.lc; $("#bars").innerHTML = R([["Easy", L.easy, 80], ["Medium", L.med, 60], ["Hard", L.hard, 30]], b => `<div><small><span>${b[0]}</span><span>${b[1]}</span></small><u><i data-w="${Math.min(100, b[1] / b[2] * 100)}"></i></u></div>`);
 // heatmap
-let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-const days = CFG.heat || Array.from({ length: 371 }, (_, i) => { const r = rnd(); return r < .42 ? 0 : r < .65 ? 1 : r < .82 ? 2 : r < .94 ? 3 : 4 });
-$("#hm").innerHTML = R(days, (v, i) => `<i style="--c:${Math.floor(i / 7)};background:var(--g${v})" title="${v} contribution level"></i>`);
+
+/* ===== LIVE GITHUB CONTRIBUTION HEATMAP ===== */
+
+const GITHUB_USERNAME = "kumarsauravgupta";
+
+const heatmap = document.querySelector("#hm");
+
+// Create a contribution counter above the heatmap.
+const totalEl = document.createElement("p");
+totalEl.id = "gh-total";
+totalEl.textContent = "Loading GitHub contributions...";
+
+heatmap.parentElement.insertBefore(totalEl, heatmap);
+
+async function loadGitHubHeatmap() {
+    try {
+        const url =
+            `const GITHUB_USERNAME = "kumarsauravgupta";`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error("GitHub contribution API request failed");
+        }
+
+        const data = await response.json();
+
+        if (!Array.isArray(data.contributions)) {
+            throw new Error("Invalid contribution data");
+        }
+
+        const days = data.contributions;
+
+        // Display the real total for the last year.
+        const total =
+            data.total?.lastYear ??
+            days.reduce((sum, day) => sum + day.count, 0);
+
+        totalEl.textContent =
+            `${total.toLocaleString()} contributions in the last year`;
+
+        // Render real contribution data instead of random squares.
+        heatmap.innerHTML = days.map((day, index) => {
+            const level = Math.max(0, Math.min(4, day.level));
+
+            return `
+                <i
+                    style="
+                        --c: ${Math.floor(index / 7)};
+                        background: var(--g${level});
+                    "
+                    title="${day.count} contributions on ${day.date}"
+                    aria-label="${day.count} contributions on ${day.date}"
+                ></i>
+            `;
+        }).join("");
+
+        heatmap.classList.add("in");
+
+    } catch (error) {
+        console.error("GitHub heatmap error:", error);
+
+        totalEl.textContent =
+            "Unable to load contributions. Please try again later.";
+    }
+}
+
+// Load immediately when the page opens.
+loadGitHubHeatmap();
+
+// Refresh the displayed data every 30 minutes.
+setInterval(loadGitHubHeatmap, 30 * 60 * 1000);
+
 // rotating word
 let ri = 0; setInterval(() => { ri = (ri + 1) % CFG.role.length; const e = $("#rot"); e.style.animation = "none"; e.offsetWidth; e.style.animation = ""; e.textContent = CFG.role[ri] }, 2200);
 // terminal typing
